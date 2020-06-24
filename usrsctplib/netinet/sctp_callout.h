@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  */
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) && !defined(__Userspace__)
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #endif
@@ -52,35 +52,22 @@ __FBSDID("$FreeBSD$");
 
 #define SCTP_TICKS_PER_FASTTIMO 20	/* called about every 20ms */
 
-extern userland_mutex_t sctp_os_timerwait_mtx;
-
 #if defined(__Userspace__)
-#if defined(__Userspace_os_Windows)
+#if defined(_WIN32)
 #define SCTP_TIMERQ_LOCK()          EnterCriticalSection(&SCTP_BASE_VAR(timer_mtx))
 #define SCTP_TIMERQ_UNLOCK()        LeaveCriticalSection(&SCTP_BASE_VAR(timer_mtx))
 #define SCTP_TIMERQ_LOCK_INIT()     InitializeCriticalSection(&SCTP_BASE_VAR(timer_mtx))
 #define SCTP_TIMERQ_LOCK_DESTROY()  DeleteCriticalSection(&SCTP_BASE_VAR(timer_mtx))
-
-#define SCTP_TIMERWAIT_LOCK()          EnterCriticalSection(&sctp_os_timerwait_mtx)
-#define SCTP_TIMERWAIT_UNLOCK()        LeaveCriticalSection(&sctp_os_timerwait_mtx)
-#define SCTP_TIMERWAIT_LOCK_INIT()     InitializeCriticalSection(&sctp_os_timerwait_mtx)
-#define SCTP_TIMERWAIT_LOCK_DESTROY()  DeleteCriticalSection(&sctp_os_timerwait_mtx)
 #else
 #ifdef INVARIANTS
 #define SCTP_TIMERQ_LOCK()          KASSERT(pthread_mutex_lock(&SCTP_BASE_VAR(timer_mtx)) == 0, ("%s: timer_mtx already locked", __func__))
 #define SCTP_TIMERQ_UNLOCK()        KASSERT(pthread_mutex_unlock(&SCTP_BASE_VAR(timer_mtx)) == 0, ("%s: timer_mtx not locked", __func__))
-#define SCTP_TIMERWAIT_LOCK()       KASSERT(pthread_mutex_lock(&sctp_os_timerwait_mtx) == 0, ("%s: sctp_os_timerwait_mtx already locked", __func__))
-#define SCTP_TIMERWAIT_UNLOCK()	    KASSERT(pthread_mutex_unlock(&sctp_os_timerwait_mtx) == 0, ("%s: sctp_os_timerwait_mtx not locked", __func__))
 #else
 #define SCTP_TIMERQ_LOCK()          (void)pthread_mutex_lock(&SCTP_BASE_VAR(timer_mtx))
 #define SCTP_TIMERQ_UNLOCK()        (void)pthread_mutex_unlock(&SCTP_BASE_VAR(timer_mtx))
-#define SCTP_TIMERWAIT_LOCK()       (void)pthread_mutex_lock(&sctp_os_timerwait_mtx)
-#define SCTP_TIMERWAIT_UNLOCK()     (void)pthread_mutex_unlock(&sctp_os_timerwait_mtx)
 #endif
 #define SCTP_TIMERQ_LOCK_INIT()     (void)pthread_mutex_init(&SCTP_BASE_VAR(timer_mtx), &SCTP_BASE_VAR(mtx_attr))
 #define SCTP_TIMERQ_LOCK_DESTROY()  (void)pthread_mutex_destroy(&SCTP_BASE_VAR(timer_mtx))
-#define SCTP_TIMERWAIT_LOCK_INIT()     (void)pthread_mutex_init(&sctp_os_timerwait_mtx, &SCTP_BASE_VAR(mtx_attr))
-#define SCTP_TIMERWAIT_LOCK_DESTROY()  (void)pthread_mutex_destroy(&sctp_os_timerwait_mtx)
 #endif
 #endif
 
@@ -101,7 +88,9 @@ typedef struct sctp_callout sctp_os_timer_t;
 #define	SCTP_CALLOUT_PENDING	0x0004	/* callout is waiting for timeout */
 
 void sctp_os_timer_init(sctp_os_timer_t *tmr);
-void sctp_os_timer_start(sctp_os_timer_t *, uint32_t, void (*)(void *), void *);
+/* Returns 1 if pending timer was rescheduled, 0 otherwise. */
+int sctp_os_timer_start(sctp_os_timer_t *, uint32_t, void (*)(void *), void *);
+/* Returns 1 if pending timer was stopped, 0 otherwise. */
 int sctp_os_timer_stop(sctp_os_timer_t *);
 void sctp_handle_tick(uint32_t);
 
@@ -115,9 +104,10 @@ void sctp_handle_tick(uint32_t);
 #define	SCTP_OS_TIMER_DEACTIVATE(tmr) ((tmr)->c_flags &= ~SCTP_CALLOUT_ACTIVE)
 
 #if defined(__Userspace__)
-void sctp_start_timer(void);
+void sctp_start_timer_thread(void);
+void sctp_stop_timer_thread(void);
 #endif
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(__Userspace__)
 void sctp_timeout(void *);
 #endif
 

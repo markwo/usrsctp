@@ -56,44 +56,30 @@ add_project_arguments([
 
 # OS-specific settings
 system = host_machine.system()
-if ['linux', 'android'].contains(system)
+if system in ['linux', 'android']
     add_project_arguments([
-        '-D__Userspace_os_Linux',
         '-D_GNU_SOURCE',
     ], language: 'c')
 elif system == 'freebsd'
-    add_project_arguments([
-        '-D__Userspace_os_FreeBSD',
-        '-U__FreeBSD__',
-    ] + compiler.get_supported_arguments([
+    add_project_arguments(
+    compiler.get_supported_arguments([
         '-Wno-address-of-packed-member',
     ]), language: 'c')
-elif ['darwin', 'ios'].contains(system)
+elif system in ['darwin', 'ios']
     add_project_arguments([
-            '-D__Userspace_os_Darwin',
-            '-U__APPLE__',
             '-D__APPLE_USE_RFC_2292',
         ] + compiler.get_supported_arguments([
             '-Wno-address-of-packed-member',
             '-Wno-deprecated-declarations',
         ]), language: 'c')
 elif system == 'dragonfly'
-    add_project_arguments([
-        '-D__Userspace_os_DragonFly',
-        '-U__DragonFly__',
-    ], language: 'c')
+    add_project_arguments([], language: 'c')
 elif system == 'netbsd'
-    add_project_arguments([
-        '-D__Userspace_os_NetBSD',
-        '-U__NetBSD__',
-    ], language: 'c')
+    add_project_arguments([], language: 'c')
 elif system == 'openbsd'
-    add_project_arguments([
-        '-D__Userspace_os_OpenBSD',
-        '-U__OpenBSD__',
-    ], language: 'c')
+    add_project_arguments([], language: 'c')
 elif system == 'windows'
-    add_project_arguments('-D__Userspace_os_Windows', language: 'c')
+    add_project_arguments([]], language: 'c')
     dependencies += compiler.find_library('ws2_32', required: true)
     dependencies += compiler.find_library('iphlpapi', required: true)
     if compiler.get_id() == 'gcc'
@@ -159,7 +145,7 @@ have_sin6_len = compiler.has_member('struct sockaddr_in6', 'sin6_len', prefix: p
 if have_sin6_len
     add_project_arguments('-DHAVE_SIN6_LEN', language: 'c')
 endif
-have_sconn_len = compiler.has_member('struct sockaddr_conn', 'sconn_len', prefix: '#include "usrsctp.h"')
+have_sconn_len = compiler.has_member('struct sockaddr_conn', 'sconn_len', prefix: '#include "usrsctp.h"', include_directories: include_directories('usrsctplib'))
 if have_sconn_len
     add_project_arguments('-DHAVE_SCONN_LEN', language: 'c')
 endif
@@ -208,7 +194,8 @@ else
         dependencies: dependencies,
         include_directories: include_dirs,
         install: true,
-        version: meson.project_version())
+        version: meson.project_version(),
+        c_args: '-U__APPLE__')
 endif
 
 # Declare dependency
