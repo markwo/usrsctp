@@ -24,12 +24,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         path: 'usrsctp_source'
-      
-    - name: Setup CMake
-      uses: jwlawson/actions-setup-cmake@v1.2
-      with:
-        github-api-token: ${{ secrets.GITHUB_TOKEN }}
-        
+
     - name: Prepare dirs
       shell: bash
       run: |
@@ -42,6 +37,7 @@ jobs:
         cd cmake_build
         cmake -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} \
               -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+              -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
               -Dsctp_debug=${{ matrix.sctp_debug }} \
               -Dsctp_invariants=${{ matrix.sctp_invariants }} \
               -Dsctp_inet6=${{ matrix.sctp_inet6 }} \
@@ -54,4 +50,8 @@ jobs:
     - name: Build and install project
       shell: bash
       run: |
-        cmake --build cmake_build --config ${{ matrix.cmake_build_type }} --target install --clean-first
+        cmake --build cmake_build \
+              --parallel 2 \
+              --config ${{ matrix.cmake_build_type }} \
+              --target install \
+              --clean-first
